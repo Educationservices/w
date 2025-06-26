@@ -6,11 +6,16 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 import random
 import string
+import os
+
+from dotenv import load_dotenv
+load_dotenv()
 
 app = FastAPI()
 
 # MongoDB connection
-client = MongoClient("mongodb+srv://monmino973:<db_password>@cluster0.ltgx5j1.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0")
+MONGODB_URI = os.getenv("MONGODB_URI")
+client = MongoClient(MONGODB_URI)
 db = client["game_db"]
 users_collection = db["users"]
 games_collection = db["games"]
@@ -120,5 +125,4 @@ async def update_pokemon_data(data: PokemonDataModel):
     )
     return {"message": f"{data.key} updated for {data.pokemon}"}
 
-# Start server: `uvicorn filename:app --host 0.0.0.0 --port 8000`
-
+# Run with: uvicorn filename:app --host 0.0.0.0 --port 8000
