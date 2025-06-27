@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -43,7 +43,7 @@ POKEMON_NAMES = [
 
 # Models
 class SignupModel(BaseModel):
-    email: str
+    email: str  # Using str instead of EmailStr for less strict validation
     username: str
     password: str
     gender: str
@@ -67,11 +67,11 @@ class PokemonDataModel(BaseModel):
     value: int
 
 class EmailVerificationModel(BaseModel):
-    email: str
+    email: str  # Using str instead of EmailStr for less strict validation
     username: Optional[str] = None
 
 class GetCodeModel(BaseModel):
-    email: str
+    email: str  # Changed from EmailStr to regular str
 
 # Utilities
 def generate_code(length=6):
@@ -179,21 +179,193 @@ async def send_verification_email(data: EmailVerificationModel):
         
         # HTML email template
         html_body = f"""
-        <html>
-        <body>
-            <h2>Welcome to the Pokemon Game!</h2>
-            <p>Hi {data.username or 'Player'},</p>
-            <p>Thank you for signing up! Please use the verification code below to verify your email address:</p>
-            <div style="background-color: #f0f0f0; padding: 20px; text-align: center; margin: 20px 0;">
-                <h1 style="color: #333; letter-spacing: 3px;">{verification_code}</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimon - Email Verification</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .email-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+            margin: 0;
+        }
+        .greeting {
+            font-size: 1.3em;
+            color: #333;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        .message {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        .verification-box {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            margin: 30px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        .verification-box::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: shimmer 3s ease-in-out infinite;
+        }
+        @keyframes shimmer {
+            0%, 100% { transform: rotate(0deg); }
+            50% { transform: rotate(180deg); }
+        }
+        .verification-code {
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 2.2em;
+            font-weight: bold;
+            letter-spacing: 8px;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+        .code-label {
+            color: white;
+            font-size: 1.1em;
+            margin-bottom: 15px;
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+        }
+        .expiry-notice {
+            background: rgba(255, 193, 7, 0.1);
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 25px 0;
+            border-radius: 0 8px 8px 0;
+            color: #856404;
+            font-weight: 500;
+        }
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+        }
+        .footer p {
+            color: #666;
+            margin: 5px 0;
+        }
+        .team-signature {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        .disclaimer {
+            font-size: 0.9em;
+            color: #999;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .sparkle {
+            display: inline-block;
+            animation: sparkle 2s ease-in-out infinite;
+        }
+        @keyframes sparkle {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(180deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1 class="logo">Minimon <span class="sparkle">✨</span></h1>
+            <p class="subtitle">Adventure Awaits!</p>
+        </div>
+        
+        <div class="greeting">
+            Hello {data.username or 'Adventurer'}! 🎮
+        </div>
+        
+        <div class="message">
+            Welcome to the world of Minimon! We're thrilled to have you join our community of explorers and collectors. 
+            To complete your registration and start your epic journey, please verify your email address using the code below:
+        </div>
+        
+        <div class="verification-box">
+            <div class="code-label">Your Verification Code</div>
+            <div class="verification-code">{verification_code}</div>
+        </div>
+        
+        <div class="expiry-notice">
+            ⏰ <strong>Important:</strong> This verification code will expire in 10 minutes for security purposes.
+        </div>
+        
+        <div class="message">
+            Once verified, you'll have access to all the exciting features that Minimon has to offer. 
+            Get ready to embark on adventures, collect rare creatures, and become the ultimate Minimon master!
+        </div>
+        
+        <div class="footer">
+            <p>Happy adventuring! 🌟</p>
+            <p class="team-signature">The Minimon Team</p>
+            
+            <div class="disclaimer">
+                If you didn't create a Minimon account, please ignore this email. 
+                No further action is required, and your email will not be added to our system.
             </div>
-            <p>This code will expire in 10 minutes.</p>
-            <p>If you didn't request this verification, please ignore this email.</p>
-            <br>
-            <p>Happy Gaming!</p>
-            <p>The Pokemon Game Team</p>
-        </body>
-        </html>
+        </div>
+    </div>
+</body>
+</html>
         """
         
         # Create message
@@ -220,6 +392,15 @@ async def send_verification_email(data: EmailVerificationModel):
         return JSONResponse({"error": f"Failed to send email: {str(e)}"}, status_code=500)
     except Exception as e:
         return JSONResponse({"error": f"Unexpected error: {str(e)}"}, status_code=500)
+
+@app.post("/debug-request")
+async def debug_request(request: Request):
+    body = await request.body()
+    return {
+        "body": body.decode(),
+        "content_type": request.headers.get("content-type"),
+        "headers": dict(request.headers)
+    }
 
 @app.post("/codes/")
 async def get_verification_code(data: GetCodeModel):
