@@ -178,7 +178,9 @@ async def send_verification_email(data: EmailVerificationModel):
         subject = "Email Verification - Game Account"
         
         # HTML email template
-        html_body = f"""
+# Replace your html_body f-string with this corrected version:
+
+html_body = f"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -186,31 +188,31 @@ async def send_verification_email(data: EmailVerificationModel):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minimon - Email Verification</title>
     <style>
-        body {
+        body {{
             margin: 0;
             padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-        .email-container {
+        }}
+        .email-container {{
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 20px;
             padding: 40px;
             max-width: 600px;
-            width: 90%;
+            width: 90%%;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        .header {
+        }}
+        .header {{
             text-align: center;
             margin-bottom: 30px;
-        }
-        .logo {
+        }}
+        .logo {{
             background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -219,25 +221,25 @@ async def send_verification_email(data: EmailVerificationModel):
             font-weight: bold;
             margin-bottom: 10px;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .subtitle {
+        }}
+        .subtitle {{
             color: #666;
             font-size: 1.1em;
             margin: 0;
-        }
-        .greeting {
+        }}
+        .greeting {{
             font-size: 1.3em;
             color: #333;
             margin-bottom: 20px;
             font-weight: 500;
-        }
-        .message {
+        }}
+        .message {{
             color: #555;
             line-height: 1.6;
             margin-bottom: 30px;
             font-size: 1.1em;
-        }
-        .verification-box {
+        }}
+        .verification-box {{
             background: linear-gradient(135deg, #667eea, #764ba2);
             border-radius: 15px;
             padding: 30px;
@@ -245,22 +247,22 @@ async def send_verification_email(data: EmailVerificationModel):
             margin: 30px 0;
             position: relative;
             overflow: hidden;
-        }
-        .verification-box::before {
+        }}
+        .verification-box::before {{
             content: '';
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            top: -50%%;
+            left: -50%%;
+            width: 200%%;
+            height: 200%%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%%, transparent 70%%);
             animation: shimmer 3s ease-in-out infinite;
-        }
-        @keyframes shimmer {
-            0%, 100% { transform: rotate(0deg); }
-            50% { transform: rotate(180deg); }
-        }
-        .verification-code {
+        }}
+        @keyframes shimmer {{
+            0%%, 100%% {{ transform: rotate(0deg); }}
+            50%% {{ transform: rotate(180deg); }}
+        }}
+        .verification-code {{
             background: rgba(255, 255, 255, 0.9);
             color: #333;
             font-size: 2.2em;
@@ -273,16 +275,16 @@ async def send_verification_email(data: EmailVerificationModel):
             border: 2px solid rgba(255, 255, 255, 0.3);
             position: relative;
             z-index: 1;
-        }
-        .code-label {
+        }}
+        .code-label {{
             color: white;
             font-size: 1.1em;
             margin-bottom: 15px;
             font-weight: 500;
             position: relative;
             z-index: 1;
-        }
-        .expiry-notice {
+        }}
+        .expiry-notice {{
             background: rgba(255, 193, 7, 0.1);
             border-left: 4px solid #ffc107;
             padding: 15px;
@@ -290,38 +292,38 @@ async def send_verification_email(data: EmailVerificationModel):
             border-radius: 0 8px 8px 0;
             color: #856404;
             font-weight: 500;
-        }
-        .footer {
+        }}
+        .footer {{
             margin-top: 40px;
             text-align: center;
-        }
-        .footer p {
+        }}
+        .footer p {{
             color: #666;
             margin: 5px 0;
-        }
-        .team-signature {
+        }}
+        .team-signature {{
             background: linear-gradient(45deg, #667eea, #764ba2);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             font-weight: bold;
             font-size: 1.2em;
-        }
-        .disclaimer {
+        }}
+        .disclaimer {{
             font-size: 0.9em;
             color: #999;
             margin-top: 20px;
             padding-top: 20px;
             border-top: 1px solid #eee;
-        }
-        .sparkle {
+        }}
+        .sparkle {{
             display: inline-block;
             animation: sparkle 2s ease-in-out infinite;
-        }
-        @keyframes sparkle {
-            0%, 100% { transform: scale(1) rotate(0deg); }
-            50% { transform: scale(1.1) rotate(180deg); }
-        }
+        }}
+        @keyframes sparkle {{
+            0%%, 100%% {{ transform: scale(1) rotate(0deg); }}
+            50%% {{ transform: scale(1.1) rotate(180deg); }}
+        }}
     </style>
 </head>
 <body>
@@ -366,7 +368,7 @@ async def send_verification_email(data: EmailVerificationModel):
     </div>
 </body>
 </html>
-        """
+"""
         
         # Create message
         message = MIMEMultipart("alternative")
