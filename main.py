@@ -84,6 +84,25 @@ def validate_email(email: str) -> bool:
     email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(email_pattern, email) is not None
 
+def parse_json_safely(body: bytes, content_type: str) -> dict:
+    """
+    Safely parse JSON from request body, handling various formats
+    """
+    try:
+        if "application/json" in content_type.lower():
+            body_str = body.decode('utf-8').strip()
+            
+            # Handle case where body is already a JSON string
+            if body_str.startswith('"') and body_str.endswith('"'):
+                # Remove outer quotes and unescape
+                body_str = json.loads(body_str)
+            
+            return json.loads(body_str)
+        else:
+            raise ValueError("Content-Type must be application/json")
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        raise ValueError(f"Invalid JSON format: {str(e)}")
+
 # Routes
 @app.post("/signup")
 async def signup(data: SignupModel):
@@ -168,25 +187,9 @@ async def send_verification_email(request: Request):
         print(f"Content-Type: {content_type}")
         print(f"Raw body: {body}")
         
-        # Handle different content types
-        if "application/json" in content_type:
-            try:
-                if isinstance(body, bytes):
-                    body_str = body.decode('utf-8').strip()
-                else:
-                    body_str = str(body).strip()
-                
-                # Parse JSON
-                data_dict = json.loads(body_str)
-                print(f"Parsed JSON: {data_dict}")
-                
-            except json.JSONDecodeError as e:
-                return JSONResponse(
-                    {"error": f"Invalid JSON format: {str(e)}", "received_body": body.decode('utf-8')[:200]}, 
-                    status_code=400
-                )
-        else:
-            return JSONResponse({"error": "Content-Type must be application/json"}, status_code=400)
+        # Parse JSON safely
+        data_dict = parse_json_safely(body, content_type)
+        print(f"Parsed JSON: {data_dict}")
         
         # Validate required fields
         if not isinstance(data_dict, dict):
@@ -239,6 +242,8 @@ async def send_verification_email(request: Request):
             "expires_in_minutes": 10
         }
         
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
     except Exception as e:
         print(f"Error in send_verification_email: {str(e)}")
         return JSONResponse({"error": f"Unexpected error: {str(e)}"}, status_code=500)
@@ -421,40 +426,66 @@ def create_email_template(username: str, verification_code: str) -> str:
     """
 
 @app.post("/codes/")
-async def get_verification_code(data: GetCodeModel):
+async def get_verification_code(request: Request):
     """
-    Retrieve verification code for debugging/testing
+    Retrieve verification code for debugging/testing - with robust JSON handling
     """
     try:
+        # Get raw body and content type
+        body = await request.body()
+        content_type = request.headers.get("content-type", "").lower()
+        
+        print(f"[/codes/] Content-Type: {content_type}")
+        print(f"[/codes/] Raw body: {body}")
+        
+        # Parse JSON safely
+        try:
+            data_dict = parse_json_safely(body, content_type)
+            print(f"[/codes/] Parsed JSON: {data_dict}")
+        except ValueError as e:
+            return JSONResponse({"error": str(e), "received_body": body.decode('utf-8')[:200]}, status_code=400)
+        
+        # Validate required fields
+        if not isinstance(data_dict, dict):
+            return JSONResponse({"error": "Request body must be a JSON object"}, status_code=400)
+        
+        if "email" not in data_dict:
+            return JSONResponse({"error": "Email field is required"}, status_code=400)
+        
+        email = data_dict["email"]
+        
+        # Validate email format
+        if not validate_email(email):
+            return JSONResponse({"error": "Invalid email format"}, status_code=400)
+        
         # Clean up expired codes
         verification_collection.delete_many({"expires_at": {"$lt": datetime.utcnow()}})
         
         # Find verification code
-        verification = verification_collection.find_one({"email": data.email})
+        verification = verification_collection.find_one({"email": email})
         
         if not verification:
-            raise HTTPException(status_code=404, detail="No verification code found for this email")
+            return JSONResponse({"error": "No verification code found for this email"}, status_code=404)
         
         # Check if expired
         if verification["expires_at"] < datetime.utcnow():
-            verification_collection.delete_one({"email": data.email})
-            raise HTTPException(status_code=410, detail="Verification code has expired")
+            verification_collection.delete_one({"email": email})
+            return JSONResponse({"error": "Verification code has expired"}, status_code=410)
         
         # Calculate remaining time
         remaining_time = verification["expires_at"] - datetime.utcnow()
         remaining_minutes = int(remaining_time.total_seconds() / 60)
         
         return {
-            "email": data.email,
+            "email": email,
             "code": verification["code"],
             "expires_in_minutes": remaining_minutes,
             "created_at": verification["created_at"].isoformat()
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        print(f"Error in get_verification_code: {str(e)}")
+        return JSONResponse({"error": f"Unexpected error: {str(e)}"}, status_code=500)
 
 @app.post("/debug-request")
 async def debug_request(request: Request):
