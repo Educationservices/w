@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from pydantic import BaseModel
 from typing import Optional, List
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 import random
@@ -15,6 +16,15 @@ from datetime import datetime, timedelta
 
 load_dotenv()
 app = FastAPI()
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # MongoDB connection
 MONGODB_URI = os.getenv("MONGODB_URI")
@@ -213,29 +223,32 @@ async def send_verification_email(data: EmailVerificationModel):
 
 @app.post("/codes/")
 async def get_verification_code(data: GetCodeModel):
-    # Clean up expired codes first
-    verification_collection.delete_many({"expires_at": {"$lt": datetime.utcnow()}})
-    
-    # Find the verification code for this email
-    verification = verification_collection.find_one({"email": data.email})
-    
-    if not verification:
-        return JSONResponse({"error": "No verification code found for this email"}, status_code=404)
-    
-    # Check if code is expired
-    if verification["expires_at"] < datetime.utcnow():
-        verification_collection.delete_one({"email": data.email})
-        return JSONResponse({"error": "Verification code has expired"}, status_code=410)
-    
-    # Calculate remaining time
-    remaining_time = verification["expires_at"] - datetime.utcnow()
-    remaining_minutes = int(remaining_time.total_seconds() / 60)
-    
-    return {
-        "email": data.email,
-        "code": verification["code"],
-        "expires_in_minutes": remaining_minutes,
-        "created_at": verification["created_at"].isoformat()
-    }
+    try:
+        # Clean up expired codes first
+        verification_collection.delete_many({"expires_at": {"$lt": datetime.utcnow()}})
+        
+        # Find the verification code for this email
+        verification = verification_collection.find_one({"email": data.email})
+        
+        if not verification:
+            return JSONResponse({"error": "No verification code found for this email"}, status_code=404)
+        
+        # Check if code is expired
+        if verification["expires_at"] < datetime.utcnow():
+            verification_collection.delete_one({"email": data.email})
+            return JSONResponse({"error": "Verification code has expired"}, status_code=410)
+        
+        # Calculate remaining time
+        remaining_time = verification["expires_at"] - datetime.utcnow()
+        remaining_minutes = int(remaining_time.total_seconds() / 60)
+        
+        return {
+            "email": data.email,
+            "code": verification["code"],
+            "expires_in_minutes": remaining_minutes,
+            "created_at": verification["created_at"].isoformat()
+        }
+    except Exception as e:
+        return JSONResponse({"error": f"Database error: {str(e)}"}, status_code=500)
 
 # Run with: uvicorn filename:app --host 0.0.0.0 --port 8000
