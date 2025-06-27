@@ -146,27 +146,57 @@ async def update_pokemon_data(data: PokemonDataModel):
     )
     return {"message": f"{data.key} updated for {data.pokemon}"}
 
+# Add this improved version of your email verification endpoint with better error handling
+
 @app.post("/send-verification-email")
-async def send_verification_email(data: EmailVerificationModel):
+async def send_verification_email(request: Request):
     try:
+        # Get raw body for debugging
+        body = await request.body()
+        print(f"Raw request body: {body}")
+        
+        # Try to parse JSON manually
+        try:
+            import json
+            data_dict = json.loads(body.decode('utf-8'))
+            print(f"Parsed JSON: {data_dict}")
+        except json.JSONDecodeError as e:
+            return JSONResponse(
+                {"error": f"Invalid JSON format: {str(e)}", "received_body": body.decode('utf-8')}, 
+                status_code=400
+            )
+        
+        # Validate required fields
+        if "email" not in data_dict:
+            return JSONResponse({"error": "Email field is required"}, status_code=400)
+        
+        email = data_dict["email"]
+        username = data_dict.get("username", "Adventurer")
+        
+        # Validate email format (basic validation)
+        import re
+        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(email_pattern, email):
+            return JSONResponse({"error": "Invalid email format"}, status_code=400)
+        
         # Gmail SMTP configuration
         SMTP_SERVER = "smtp.gmail.com"
         SMTP_PORT = 587
-        GMAIL_USER = os.getenv("GMAIL_USER")  # Your Gmail address
-        GMAIL_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")  # Your Gmail App Password
+        GMAIL_USER = os.getenv("GMAIL_USER")
+        GMAIL_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
         
         if not GMAIL_USER or not GMAIL_PASSWORD:
             return JSONResponse({"error": "Email configuration not found"}, status_code=500)
         
         # Generate verification code
-        verification_code = generate_code(8)  # 8-character code
+        verification_code = generate_code(8)
         
         # Store verification code in database with expiration
         expiration_time = datetime.utcnow() + timedelta(minutes=10)
         verification_collection.update_one(
-            {"email": data.email},
+            {"email": email},
             {"$set": {
-                "email": data.email,
+                "email": email,
                 "code": verification_code,
                 "expires_at": expiration_time,
                 "created_at": datetime.utcnow()
@@ -177,7 +207,7 @@ async def send_verification_email(data: EmailVerificationModel):
         # Create email content
         subject = "Email Verification - Minimon Account"
         
-        # HTML email template - using .format() instead of f-string to avoid syntax issues
+        # HTML email template
         html_template = """
 <!DOCTYPE html>
 <html lang="en">
@@ -370,9 +400,87 @@ async def send_verification_email(data: EmailVerificationModel):
         
         # Format the HTML template with actual values
         html_body = html_template.format(
-            username=data.username or 'Adventurer',
+            username=username,
             verification_code=verification_code
         )
+        
+        # Create message
+        message = MIMEMultipart("alternative")
+        message["Subject"] = subject
+        message["From"] = GMAIL_USER
+        message["To"] = email
+        
+        # Add HTML content
+        html_part = MIMEText(html_body, "html")
+        message.attach(html_part)
+        
+        # Send email
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(GMAIL_USER, GMAIL_PASSWORD)
+            server.send_message(message)
+        
+        return {"message": "Verification email sent successfully", "code_sent": True, "email": email}
+        
+    except smtplib.SMTPAuthenticationError:
+        return JSONResponse({"error": "Gmail authentication failed"}, status_code=500)
+    except smtplib.SMTPException as e:
+        return JSONResponse({"error": f"Failed to send email: {str(e)}"}, status_code=500)
+    except Exception as e:
+        return JSONResponse({"error": f"Unexpected error: {str(e)}"}, status_code=500)
+
+
+# Alternative: Keep the Pydantic model approach but add better error handling
+@app.post("/send-verification-email-v2")
+async def send_verification_email_v2(data: EmailVerificationModel):
+    try:
+        print(f"Received data: email={data.email}, username={data.username}")
+        
+        # Gmail SMTP configuration
+        SMTP_SERVER = "smtp.gmail.com"
+        SMTP_PORT = 587
+        GMAIL_USER = os.getenv("GMAIL_USER")
+        GMAIL_PASSWORD = os.getenv("GMAIL_APP_PASSWORD")
+        
+        if not GMAIL_USER or not GMAIL_PASSWORD:
+            return JSONResponse({"error": "Email configuration not found"}, status_code=500)
+        
+        # Generate verification code
+        verification_code = generate_code(8)
+        
+        # Store verification code in database with expiration
+        expiration_time = datetime.utcnow() + timedelta(minutes=10)
+        verification_collection.update_one(
+            {"email": data.email},
+            {"$set": {
+                "email": data.email,
+                "code": verification_code,
+                "expires_at": expiration_time,
+                "created_at": datetime.utcnow()
+            }},
+            upsert=True
+        )
+        
+        # Create email content
+        subject = "Email Verification - Minimon Account"
+        
+        # Simple HTML for testing
+        html_body = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; background: linear-gradient(135deg, #667eea, #764ba2); padding: 20px;">
+                <div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; margin: 0 auto;">
+                    <h1 style="color: #333; text-align: center;">Minimon ✨</h1>
+                    <h2>Hello {data.username or 'Adventurer'}!</h2>
+                    <p>Welcome to Minimon! Please use this verification code:</p>
+                    <div style="background: #f0f0f0; padding: 20px; text-align: center; margin: 20px 0; border-radius: 5px;">
+                        <h1 style="color: #333; letter-spacing: 3px; margin: 0;">{verification_code}</h1>
+                    </div>
+                    <p>This code expires in 10 minutes.</p>
+                    <p>Happy gaming!<br>The Minimon Team</p>
+                </div>
+            </body>
+        </html>
+        """
         
         # Create message
         message = MIMEMultipart("alternative")
@@ -392,13 +500,9 @@ async def send_verification_email(data: EmailVerificationModel):
         
         return {"message": "Verification email sent successfully", "code_sent": True}
         
-    except smtplib.SMTPAuthenticationError:
-        return JSONResponse({"error": "Gmail authentication failed"}, status_code=500)
-    except smtplib.SMTPException as e:
-        return JSONResponse({"error": f"Failed to send email: {str(e)}"}, status_code=500)
     except Exception as e:
-        return JSONResponse({"error": f"Unexpected error: {str(e)}"}, status_code=500)
-
+        print(f"Error in send_verification_email_v2: {str(e)}")
+        return JSONResponse({"error": f"Error: {str(e)}"}, status_code=500)
 @app.post("/debug-request")
 async def debug_request(request: Request):
     body = await request.body()
