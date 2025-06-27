@@ -175,12 +175,10 @@ async def send_verification_email(data: EmailVerificationModel):
         )
         
         # Create email content
-        subject = "Email Verification - Game Account"
+        subject = "Email Verification - Minimon Account"
         
-        # HTML email template
-# Replace your html_body f-string with this corrected version:
-
-html_body = f"""
+        # HTML email template - using .format() instead of f-string to avoid syntax issues
+        html_template = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -192,7 +190,7 @@ html_body = f"""
             margin: 0;
             padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%%, #764ba2 100%%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -204,7 +202,7 @@ html_body = f"""
             border-radius: 20px;
             padding: 40px;
             max-width: 600px;
-            width: 90%%;
+            width: 90%;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
         }}
@@ -251,16 +249,16 @@ html_body = f"""
         .verification-box::before {{
             content: '';
             position: absolute;
-            top: -50%%;
-            left: -50%%;
-            width: 200%%;
-            height: 200%%;
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%%, transparent 70%%);
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
             animation: shimmer 3s ease-in-out infinite;
         }}
         @keyframes shimmer {{
-            0%%, 100%% {{ transform: rotate(0deg); }}
-            50%% {{ transform: rotate(180deg); }}
+            0%, 100% {{ transform: rotate(0deg); }}
+            50% {{ transform: rotate(180deg); }}
         }}
         .verification-code {{
             background: rgba(255, 255, 255, 0.9);
@@ -321,8 +319,8 @@ html_body = f"""
             animation: sparkle 2s ease-in-out infinite;
         }}
         @keyframes sparkle {{
-            0%%, 100%% {{ transform: scale(1) rotate(0deg); }}
-            50%% {{ transform: scale(1.1) rotate(180deg); }}
+            0%, 100% {{ transform: scale(1) rotate(0deg); }}
+            50% {{ transform: scale(1.1) rotate(180deg); }}
         }}
     </style>
 </head>
@@ -334,7 +332,7 @@ html_body = f"""
         </div>
         
         <div class="greeting">
-            Hello {data.username or 'Adventurer'}! 🎮
+            Hello {username}! 🎮
         </div>
         
         <div class="message">
@@ -368,7 +366,13 @@ html_body = f"""
     </div>
 </body>
 </html>
-"""
+        """
+        
+        # Format the HTML template with actual values
+        html_body = html_template.format(
+            username=data.username or 'Adventurer',
+            verification_code=verification_code
+        )
         
         # Create message
         message = MIMEMultipart("alternative")
